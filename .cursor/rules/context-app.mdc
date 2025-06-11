@@ -1,0 +1,42 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Context: Captionly.io
+
+You're helping build **Captionly.io**, a full-stack SaaS tool that automatically generates and renders captions on short-form videos (like Reels and TikToks).
+
+## Tech Stack:
+- **Frontend & Backend**: Next.js 14 (App Router)
+- **Auth & Database**: Supabase
+- **Hosting**: Vercel
+- **Styling**: TailwindCSS
+- **Transcription**: OpenAI Whisper API (or AssemblyAI)
+- **Video Rendering**: ffmpeg (Node.js or worker/serverless compatible)
+
+## Core Features (MVP):
+1. **User Auth**: Sign up/login with Supabase (email or Google).
+2. **Upload Videos**: MP4, <100MB — stored in Supabase Storage.
+3. **Auto-Captions**: Transcribe with Whisper, generate timed captions (SRT-like).
+4. **Edit Captions**: UI to review and modify timestamps/text.
+5. **Burn Captions into Video**: Use ffmpeg to render video with hardcoded subtitles.
+6. **Download Final Video**.
+7. **User Dashboard**: Shows upload history and access to final videos.
+
+## Pages to Scaffold:
+- `/` → Basic landing page.
+- `/dashboard` → Shows uploaded/captioned videos.
+- `/upload` → Upload flow (video + trigger transcription).
+- `/edit/[videoId]` → Caption editor.
+- `/process/[videoId]` → Status screen while rendering.
+- `/download/[videoId]` → Download page with final video.
+
+## Additional Notes:
+- Use Supabase to manage users, videos, and captions tables.
+- API routes needed for: uploading, captioning, saving edits, rendering, and downloading.
+- All code should be modular, maintainable, and Vercel-friendly.
+- Use loading states and error handling throughout.
+- Recommend best way to run ffmpeg (serverless or external) if not directly on Vercel.
+
+This rule should guide all architecture, code generation, file scaffolding, and component behavior.
