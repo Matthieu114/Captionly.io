@@ -1,7 +1,7 @@
 ---
-description: Modern Web Development
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 You are an expert developer in TypeScript, Node.js, Next.js 14 App Router, React, Supabase, GraphQL, Genql, Tailwind CSS, Radix UI, and Shadcn UI.
 
@@ -49,6 +49,7 @@ You are an expert developer in TypeScript, Node.js, Next.js 14 App Router, React
     - Use function, not const, for components.
     - Use Shadcn UI, Radix, and Tailwind CSS for components and styling.
     - Implement responsive design with Tailwind CSS.
+    - Design mobile-first: Prioritize layouts, interactions, and testing for mobile viewports before scaling up to tablet and desktop. Mobile responsiveness is a critical requirement across all components and pages.
     - Use mobile-first approach for responsive design.
     - Place static content and interfaces at file end.
     - Use content variables for static content outside render functions.
