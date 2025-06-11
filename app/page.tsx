@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useUser } from "@/lib/useUser"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button, buttonVariants } from "@/components/ui/button"
 
 export default function Home() {
     const { user, loading } = useUser()
@@ -36,7 +37,7 @@ export default function Home() {
                 <div className="hidden md:flex items-center gap-4">
                     <Link
                         href="/login"
-                        className="ml-4 rounded-lg border-2 border-orange-500 bg-orange-500/90 text-white font-bold px-5 py-2 shadow-lg shadow-orange-900/20 hover:bg-orange-600 hover:border-orange-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                        className={buttonVariants({ variant: "accent" })}
                     >
                         Login
                     </Link>
@@ -69,13 +70,13 @@ export default function Home() {
                             href="https://your-demo-video-link.com"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded-lg bg-orange-500 hover:bg-orange-600 transition text-white px-8 py-3 text-lg font-semibold shadow-lg shadow-orange-900/20"
+                            className={buttonVariants({ variant: "accent" })}
                         >
                             See Live Demo
                         </Link>
                         <Link
                             href="/upload"
-                            className="rounded-lg border border-blue-400 text-blue-200 hover:bg-blue-900/30 transition px-8 py-3 text-lg font-semibold"
+                            className={buttonVariants({ variant: "outline" })}
                         >
                             Upload Video
                         </Link>
@@ -119,7 +120,7 @@ export default function Home() {
                         <div className="mt-auto mb-8">
                             <Link
                                 href="/login"
-                                className="w-full block text-center rounded-lg border-2 border-orange-500 bg-orange-500/90 text-white font-bold px-5 py-3 shadow-lg shadow-orange-900/20 hover:bg-orange-600 hover:border-orange-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 text-lg"
+                                className={buttonVariants({ variant: "accent", size: "lg", className: "w-full" })}
                                 onClick={() => setMenuOpen(false)}
                             >
                                 Login

@@ -5,9 +5,10 @@ CREATE TABLE videos (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('uploading', 'processing', 'ready', 'error')),
-    original_url TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
     processed_url TEXT,
-    duration INTEGER NOT NULL,
+    duration INTEGER,
+    original_url TEXT,
     size INTEGER NOT NULL
 );
 

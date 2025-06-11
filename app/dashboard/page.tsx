@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/lib/useUser"
 import Link from "next/link"
+import { Button, buttonVariants } from "@/components/ui/button"
 
 export default function DashboardPage() {
     const { user, loading } = useUser()
@@ -48,8 +49,15 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-8">
                     <h1 className="text-3xl font-bold text-white">Your Videos</h1>
                     <div className="flex gap-4">
-                        <Link href="/upload" className="rounded-lg bg-blue-500 hover:bg-blue-600 transition text-white px-6 py-3 text-lg font-semibold shadow-lg shadow-blue-900/20">Upload Video</Link>
-                        <button onClick={handleLogout} className="rounded-lg bg-slate-700 hover:bg-slate-800 transition text-white px-6 py-3 text-lg font-semibold">Log out</button>
+                        <Link href="/upload" className={buttonVariants({ variant: "default" })}>
+                            Upload Video
+                        </Link>
+                        <Button
+                            variant="secondary"
+                            onClick={handleLogout}
+                        >
+                            Log out
+                        </Button>
                     </div>
                 </div>
                 <div className="bg-[#181f2a]/90 rounded-xl shadow-lg p-6">

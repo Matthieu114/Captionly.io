@@ -1,20 +1,24 @@
 "use client"
 
 import { useUser } from "@/lib/useUser"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { Button } from "@/components/ui/button"
 
 export default function LoginPage() {
     const { user, loading } = useUser()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const redirectTo = searchParams.get("redirect") || "/dashboard"
+
     const [email, setEmail] = useState("")
     const [loadingAuth, setLoadingAuth] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
 
     useEffect(() => {
-        if (!loading && user) router.replace("/dashboard")
-    }, [user, loading, router])
+        if (!loading && user) router.replace(redirectTo)
+    }, [user, loading, router, redirectTo])
 
     if (loading || user) return null
 
@@ -22,7 +26,12 @@ export default function LoginPage() {
         e.preventDefault()
         setLoadingAuth(true)
         setMessage(null)
-        const { error } = await supabase.auth.signInWithOtp({ email })
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`
+            }
+        })
         if (error) setMessage(error.message)
         else setMessage("Check your email for the magic link!")
         setLoadingAuth(false)
@@ -31,7 +40,12 @@ export default function LoginPage() {
     async function handleGoogleLogin() {
         setLoadingAuth(true)
         setMessage(null)
-        const { error } = await supabase.auth.signInWithOAuth({ provider: "google" })
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}`
+            }
+        })
         if (error) setMessage(error.message)
         setLoadingAuth(false)
     }
@@ -43,14 +57,15 @@ export default function LoginPage() {
                     <span className="text-3xl font-extrabold text-white mb-2">Captionly</span>
                     <span className="text-blue-400 font-semibold text-lg">Sign in to your account</span>
                 </div>
-                <button
+                <Button
                     onClick={handleGoogleLogin}
                     disabled={loadingAuth}
-                    className="w-full flex items-center justify-center gap-2 bg-white text-gray-900 font-semibold rounded-lg py-3 mb-4 shadow hover:bg-gray-100 transition disabled:opacity-60"
+                    variant="secondary"
+                    className="w-full bg-white text-gray-900 hover:bg-gray-100"
                 >
                     <svg width="20" height="20" viewBox="0 0 48 48" className="mr-2"><g><path fill="#4285F4" d="M24 9.5c3.54 0 6.7 1.22 9.19 3.22l6.85-6.85C35.91 2.36 30.28 0 24 0 14.82 0 6.71 5.82 2.69 14.09l7.98 6.2C12.13 13.13 17.57 9.5 24 9.5z" /><path fill="#34A853" d="M46.1 24.55c0-1.64-.15-3.22-.42-4.74H24v9.01h12.42c-.54 2.9-2.18 5.36-4.65 7.03l7.19 5.59C43.98 37.13 46.1 31.3 46.1 24.55z" /><path fill="#FBBC05" d="M10.67 28.29a14.5 14.5 0 0 1 0-8.58l-7.98-6.2A23.94 23.94 0 0 0 0 24c0 3.93.94 7.65 2.69 10.89l7.98-6.2z" /><path fill="#EA4335" d="M24 48c6.28 0 11.56-2.08 15.41-5.66l-7.19-5.59c-2.01 1.35-4.59 2.16-8.22 2.16-6.43 0-11.87-3.63-14.33-8.79l-7.98 6.2C6.71 42.18 14.82 48 24 48z" /><path fill="none" d="M0 0h48v48H0z" /></g></svg>
                     Sign in with Google
-                </button>
+                </Button>
                 <div className="flex items-center w-full my-4">
                     <div className="flex-1 h-px bg-slate-700" />
                     <span className="mx-3 text-slate-400 text-sm">or</span>
@@ -69,13 +84,14 @@ export default function LoginPage() {
                         placeholder="you@email.com"
                         disabled={loadingAuth}
                     />
-                    <button
+                    <Button
                         type="submit"
                         disabled={loadingAuth}
-                        className="mt-2 w-full rounded-lg bg-orange-500 hover:bg-orange-600 transition text-white font-semibold py-3 text-lg shadow disabled:opacity-60"
+                        variant="accent"
+                        className="mt-2 w-full"
                     >
                         {loadingAuth ? "Sending..." : "Sign in with email"}
-                    </button>
+                    </Button>
                 </form>
                 {message && <div className="mt-4 text-center text-sm text-orange-300">{message}</div>}
                 <p className="text-xs text-slate-500 mt-6 text-center">

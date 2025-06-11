@@ -15,7 +15,6 @@ export type Database = {
           user_id: string
           title: string
           status: 'uploading' | 'processing' | 'ready' | 'error'
-          original_url: string
           processed_url: string | null
           duration: number
           size: number
@@ -26,7 +25,6 @@ export type Database = {
           user_id: string
           title: string
           status: 'uploading' | 'processing' | 'ready' | 'error'
-          original_url: string
           processed_url?: string | null
           duration: number
           size: number
@@ -37,7 +35,6 @@ export type Database = {
           user_id?: string
           title?: string
           status?: 'uploading' | 'processing' | 'ready' | 'error'
-          original_url?: string
           processed_url?: string | null
           duration?: number
           size?: number
