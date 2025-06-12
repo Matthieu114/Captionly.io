@@ -66,16 +66,19 @@ You are an expert developer in TypeScript, Node.js, Next.js 14 App Router, React
     - Implement type-safe server actions with proper validation.
     - Handle errors gracefully and return appropriate responses.
 
-    Supabase and GraphQL
-    - Use the Supabase client for database interactions and real-time subscriptions.
-    - Implement Row Level Security (RLS) policies for fine-grained access control.
-    - Use Supabase Auth for user authentication and management.
-    - Leverage Supabase Storage for file uploads and management.
-    - Use Supabase Edge Functions for serverless API endpoints when needed.
-    - Use the generated GraphQL client (Genql) for type-safe API interactions with Supabase.
-    - Optimize GraphQL queries to fetch only necessary data.
-    - Use Genql queries for fetching large datasets efficiently.
-    - Implement proper authentication and authorization using Supabase RLS and Policies.
+    ### Supabase and GraphQL
+
+- Use the Supabase client (`@supabase/supabase-js`) for all database interactions and real-time subscriptions.
+- Implement Row Level Security (RLS) policies on all relevant tables for fine-grained access control.
+- Use Supabase Auth for user authentication, session management, and secure identity verification.
+- Leverage Supabase Storage for file uploads, media management, and secure file access.
+- Use Supabase Edge Functions for serverless execution of privileged or background operations (e.g. webhooks, transcription, background jobs).
+- Use the generated GraphQL client (Genql) for type-safe, maintainable API interactions with Supabase’s GraphQL endpoint.
+- Optimize GraphQL queries to fetch only the required fields — avoid overfetching and deep nested relationships where unnecessary.
+- Use Genql for querying large or complex datasets to ensure type safety and performance.
+- Enforce proper authentication and authorization by combining Supabase Auth, RLS policies, and Edge Functions for secure backend logic.
+
+
 
     Key Conventions
     1. Rely on Next.js App Router for state changes and routing.

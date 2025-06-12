@@ -17,10 +17,12 @@ export default function LoginPage() {
     const [message, setMessage] = useState<string | null>(null)
 
     useEffect(() => {
-        if (!loading && user) router.replace(redirectTo)
+        if (!loading && user) {
+            router.replace(redirectTo)
+        }
     }, [user, loading, router, redirectTo])
 
-    if (loading || user) return null
+    // Don't return null here, instead render conditionally later
 
     async function handleEmailLogin(e: React.FormEvent) {
         e.preventDefault()
@@ -48,6 +50,24 @@ export default function LoginPage() {
         })
         if (error) setMessage(error.message)
         setLoadingAuth(false)
+    }
+
+    // Show loading state when checking auth
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155]">
+                <div className="text-white text-lg">Loading...</div>
+            </div>
+        );
+    }
+
+    // If user is already logged in, don't render the login form
+    if (user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155]">
+                <div className="text-white text-lg">Redirecting to dashboard...</div>
+            </div>
+        );
     }
 
     return (

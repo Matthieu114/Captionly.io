@@ -9,18 +9,41 @@ export default function AuthCallbackPage() {
     const searchParams = useSearchParams()
 
     useEffect(() => {
-        // Get the session from URL that Supabase Auth passed
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            // If there's a session, the user is logged in
-            if (session) {
-                // Check if there's a redirect parameter
-                const redirectTo = searchParams.get("redirect") || "/dashboard"
-                router.replace(redirectTo)
-            } else {
-                // If no session, redirect to login
-                router.replace("/login")
+        const fetchSession = async () => {
+            try {
+                // Exchange code for session
+                const { error } = await supabase.auth.exchangeCodeForSession(
+                    window.location.href
+                );
+
+                if (error) {
+                    console.error("Error exchanging code for session:", error);
+                    router.replace("/login");
+                    return;
+                }
+
+                // Get the session after exchange
+                const { data: { session } } = await supabase.auth.getSession();
+
+                // If there's a session, the user is logged in
+                if (session) {
+                    // Check if there's a redirect parameter
+                    const redirectTo = searchParams.get("redirect") || "/dashboard";
+                    // Add a small delay to ensure session is stored
+                    setTimeout(() => {
+                        router.replace(redirectTo);
+                    }, 500);
+                } else {
+                    // If no session, redirect to login
+                    router.replace("/login");
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+                router.replace("/login");
             }
-        })
+        };
+
+        fetchSession();
     }, [router, searchParams])
 
     return (
