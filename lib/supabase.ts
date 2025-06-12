@@ -14,7 +14,7 @@ export type Database = {
           created_at: string
           user_id: string
           title: string
-          status: 'uploading' | 'processing' | 'ready' | 'error'
+          status: 'uploading' | 'ready' | 'error' | 'transcribing'
           processed_url: string | null
           duration: number
           size: number
@@ -24,7 +24,7 @@ export type Database = {
           created_at?: string
           user_id: string
           title: string
-          status: 'uploading' | 'processing' | 'ready' | 'error'
+          status: 'uploading' | 'ready' | 'error' | 'transcribing'
           processed_url?: string | null
           duration: number
           size: number
@@ -34,7 +34,7 @@ export type Database = {
           created_at?: string
           user_id?: string
           title?: string
-          status?: 'uploading' | 'processing' | 'ready' | 'error'
+          status?: 'uploading' | 'ready' | 'error' | 'transcribing'
           processed_url?: string | null
           duration?: number
           size?: number

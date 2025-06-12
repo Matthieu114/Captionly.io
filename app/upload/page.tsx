@@ -119,7 +119,7 @@ export default function UploadPage() {
             const { error: dbError } = await supabase.from("videos").insert({
                 user_id: user.id,
                 title: file.name.split(".")[0], // Use filename as initial title
-                status: "processing", // Initial status
+                status: "ready", // Video is ready for subtitle generation
                 storage_path: filePath,
                 original_url: publicUrl, // Add the public URL as original_url
                 size: file.size,
@@ -129,7 +129,7 @@ export default function UploadPage() {
 
             toast({
                 title: "Upload successful!",
-                description: "Your video is now being processed.",
+                description: "Your video is ready for subtitle generation.",
                 duration: 5000,
             })
 
