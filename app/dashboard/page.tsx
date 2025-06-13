@@ -5,13 +5,33 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useUser } from "@/lib/useUser"
 import Link from "next/link"
+import Image from "next/image"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { motion } from "framer-motion"
+import {
+    Plus,
+    LogOut,
+    Trash2,
+    FileVideo,
+    Edit,
+    ChevronRight,
+    PlayCircle,
+    Clock,
+    AlertCircle,
+    CheckCircle2,
+    Loader2
+} from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Video {
     id: string
     title: string
     status: 'uploading' | 'ready' | 'error' | 'transcribing'
     created_at: string
+    original_url?: string
+    captioned_url?: string
+    thumbnail_url?: string
 }
 
 export default function DashboardPage() {
@@ -19,11 +39,92 @@ export default function DashboardPage() {
     const [videos, setVideos] = useState<Video[]>([])
     const [fetching, setFetching] = useState(false)
     const [generatingSubtitles, setGeneratingSubtitles] = useState<string | null>(null)
+    const [deletingVideo, setDeletingVideo] = useState<string | null>(null)
     const router = useRouter()
+    const { toast } = useToast()
+
+    // Animation variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    }
+
+    const itemVariants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: { y: 0, opacity: 1 }
+    }
 
     async function handleLogout() {
         await supabase.auth.signOut()
         router.replace("/")
+    }
+
+    async function handleDeleteVideo(videoId: string) {
+        if (!confirm("Are you sure you want to delete this video? This action cannot be undone.")) {
+            return
+        }
+
+        setDeletingVideo(videoId)
+
+        try {
+            // Get the video info to get the storage path
+            const { data: videoData } = await supabase
+                .from("videos")
+                .select("storage_path")
+                .eq("id", videoId)
+                .single()
+
+            if (videoData?.storage_path) {
+                // Delete the video from storage
+                await supabase.storage.from('videos').remove([videoData.storage_path])
+            }
+
+            // Delete captions if they exist
+            const { data: captionsData } = await supabase
+                .from("captions")
+                .select("id")
+                .eq("video_id", videoId)
+
+            if (captionsData && captionsData.length > 0) {
+                await supabase
+                    .from("captions")
+                    .delete()
+                    .eq("video_id", videoId)
+            }
+
+            // Delete the video entry
+            const { error } = await supabase
+                .from("videos")
+                .delete()
+                .eq("id", videoId)
+
+            if (error) throw error
+
+            // Update local state
+            setVideos(prevVideos => prevVideos.filter(video => video.id !== videoId))
+
+            toast({
+                title: "Video deleted",
+                description: "The video has been successfully deleted.",
+                duration: 5000,
+            })
+
+        } catch (error) {
+            console.error('Error deleting video:', error)
+            toast({
+                title: "Error",
+                description: "Failed to delete video. Please try again.",
+                variant: "destructive",
+                duration: 5000,
+            })
+        } finally {
+            setDeletingVideo(null)
+        }
     }
 
     async function handleGenerateSubtitles(videoId: string) {
@@ -61,7 +162,12 @@ export default function DashboardPage() {
 
         } catch (error) {
             console.error('Error generating subtitles:', error)
-            alert(error instanceof Error ? error.message : 'Failed to generate subtitles. Please try again.')
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : 'Failed to generate subtitles. Please try again.',
+                variant: "destructive",
+                duration: 5000,
+            })
         } finally {
             setGeneratingSubtitles(null)
         }
@@ -76,7 +182,7 @@ export default function DashboardPage() {
             setFetching(true)
             supabase
                 .from("videos")
-                .select("id, title, status, created_at")
+                .select("id, title, status, created_at, original_url, thumbnail_url")
                 .eq("user_id", user.id)
                 .order("created_at", { ascending: false })
                 .then(({ data }) => {
@@ -86,95 +192,305 @@ export default function DashboardPage() {
         }
     }, [user])
 
-    if (loading || (!user && !loading)) return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155]">
-            <span className="text-white text-lg">Loading...</span>
-        </div>
-    )
+    function getStatusIcon(status: Video['status']) {
+        const iconClasses = "w-5 h-5";
+        switch (status) {
+            case 'ready':
+                return <CheckCircle2 className={`text-green-400 ${iconClasses}`} />;
+            case 'transcribing':
+                return <Clock className={`text-purple-400 ${iconClasses}`} />;
+            case 'uploading':
+                return <Loader2 className={`text-blue-400 animate-spin ${iconClasses}`} />;
+            case 'error':
+                return <AlertCircle className={`text-red-400 ${iconClasses}`} />;
+            default:
+                return null;
+        }
+    }
 
     function getStatusDisplay(status: Video['status']) {
         const statusMap = {
-            uploading: { color: 'bg-blue-500/80 text-white', text: 'Uploading' },
-            ready: { color: 'bg-green-600/80 text-white', text: 'Ready' },
-            transcribing: { color: 'bg-purple-500/80 text-white', text: 'Transcribing' },
-            error: { color: 'bg-red-600/80 text-white', text: 'Error' }
+            uploading: { color: 'bg-blue-500/30 text-blue-300 border-blue-500/30', text: 'Uploading' },
+            ready: { color: 'bg-green-500/30 text-green-300 border-green-500/30', text: 'Ready' },
+            transcribing: { color: 'bg-purple-500/30 text-purple-300 border-purple-500/30', text: 'Transcribing' },
+            error: { color: 'bg-red-500/30 text-red-300 border-red-500/30', text: 'Error' }
         }
 
         return statusMap[status] || statusMap.error
     }
 
+    // Loading skeleton
+    if (loading || (!user && !loading)) return (
+        <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155]">
+            <DashboardSkeleton />
+        </div>
+    )
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] px-4 py-10">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold text-white">Your Videos</h1>
-                    <div className="flex gap-4">
-                        <Link href="/upload" className={buttonVariants({ variant: "default" })}>
+        <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] relative">
+            {/* Background elements */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[10%] right-[15%] w-64 h-64 rounded-full bg-purple-500/10 blur-3xl"></div>
+                <div className="absolute top-[40%] left-[10%] w-72 h-72 rounded-full bg-blue-500/10 blur-3xl"></div>
+                <div className="absolute bottom-[20%] right-[20%] w-80 h-80 rounded-full bg-cyan-500/10 blur-3xl"></div>
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"></div>
+            </div>
+
+            <div className="relative z-10 container mx-auto px-4 py-12">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Your Videos</h1>
+                        <p className="text-slate-400 mt-2">Manage your uploaded videos and generate captions</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <Link
+                            href="/upload"
+                            className={buttonVariants({
+                                variant: "default",
+                                className: "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-lg shadow-blue-500/20 border border-white/10 gap-2"
+                            })}
+                        >
+                            <Plus className="w-4 h-4" />
                             Upload Video
                         </Link>
                         <Button
-                            variant="secondary"
+                            variant="outline"
                             onClick={handleLogout}
+                            className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-2"
                         >
+                            <LogOut className="w-4 h-4" />
                             Log out
                         </Button>
                     </div>
                 </div>
-                <div className="bg-[#181f2a]/90 rounded-xl shadow-lg p-6">
+
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/10">
                     {fetching ? (
-                        <div className="text-slate-300">Loading videos...</div>
+                        <VideoListSkeleton />
                     ) : videos.length === 0 ? (
-                        <div className="text-slate-400 text-center py-12">No videos uploaded yet.</div>
+                        <EmptyState />
                     ) : (
-                        <ul className="divide-y divide-slate-800">
+                        <motion.ul
+                            className="divide-y divide-white/10"
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                        >
                             {videos.map(video => {
                                 const statusInfo = getStatusDisplay(video.status)
                                 return (
-                                    <li key={video.id} className="py-4 flex items-center justify-between">
-                                        <div>
-                                            <div className="text-lg font-semibold text-white">{video.title}</div>
-                                            <div className="text-xs text-slate-400">
-                                                Uploaded: {new Date(video.created_at).toLocaleString()}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusInfo.color}`}>
-                                                {statusInfo.text}
-                                            </span>
-
-                                            {/* Generate Subtitles CTA for ready videos */}
-                                            {video.status === 'ready' && (
-                                                <Button
-                                                    onClick={() => handleGenerateSubtitles(video.id)}
-                                                    disabled={generatingSubtitles === video.id}
-                                                    size="sm"
-                                                    className="bg-blue-600 hover:bg-blue-700"
-                                                >
-                                                    {generatingSubtitles === video.id ? 'Starting...' : 'Generate Subtitles'}
-                                                </Button>
+                                    <motion.li
+                                        key={video.id}
+                                        className="py-5 flex flex-col md:flex-row gap-4"
+                                        variants={itemVariants}
+                                    >
+                                        {/* Video thumbnail */}
+                                        <div className="relative w-full md:w-48 h-32 md:h-24 overflow-hidden rounded-lg bg-slate-800 flex-shrink-0">
+                                            {video.thumbnail_url ? (
+                                                <>
+                                                    <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-10 flex items-center justify-center">
+                                                        <PlayCircle className="w-10 h-10 text-white/70" />
+                                                    </div>
+                                                    <Image
+                                                        src={video.thumbnail_url}
+                                                        alt={video.title}
+                                                        width={192}
+                                                        height={108}
+                                                        className="object-cover w-full h-full"
+                                                        onError={(e) => {
+                                                            // Fallback on error
+                                                            e.currentTarget.src = '/video-placeholder.jpg';
+                                                        }}
+                                                    />
+                                                </>
+                                            ) : video.original_url ? (
+                                                <>
+                                                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex items-center justify-center">
+                                                        <PlayCircle className="w-10 h-10 text-white/70" />
+                                                    </div>
+                                                    <div className="flex items-center justify-center h-full">
+                                                        <FileVideo className="w-10 h-10 text-slate-500" />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <FileVideo className="w-10 h-10 text-slate-500" />
+                                                </div>
                                             )}
+                                        </div>
 
-                                            {/* Process button for transcribing videos */}
-                                            {video.status === 'transcribing' && (
-                                                <Link href={`/process/${video.id}`}>
-                                                    <Button size="sm" variant="outline">
-                                                        View Progress
+                                        {/* Video info */}
+                                        <div className="flex-1 min-w-0 flex flex-col md:flex-row justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-lg font-semibold text-white truncate">{video.title}</h3>
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusInfo.color} flex items-center gap-1.5`}>
+                                                        {getStatusIcon(video.status)}
+                                                        {statusInfo.text}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
+                                                    <time dateTime={video.created_at}>
+                                                        {new Date(video.created_at).toLocaleDateString('en-US', {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </time>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-3 mt-2 md:mt-0">
+                                                {/* Generate Subtitles CTA for ready videos */}
+                                                {video.status === 'ready' && (
+                                                    <Button
+                                                        onClick={() => handleGenerateSubtitles(video.id)}
+                                                        disabled={generatingSubtitles === video.id}
+                                                        size="sm"
+                                                        className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 border border-white/10 gap-1"
+                                                    >
+                                                        {generatingSubtitles === video.id ? (
+                                                            <>
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                                Starting...
+                                                            </>
+                                                        ) : (
+                                                            'Generate Subtitles'
+                                                        )}
+                                                    </Button>
+                                                )}
+
+                                                {/* Process button for transcribing videos */}
+                                                {video.status === 'transcribing' && (
+                                                    <Link href={`/process/${video.id}`}>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-1"
+                                                        >
+                                                            <Clock className="w-4 h-4" />
+                                                            View Progress
+                                                            <ChevronRight className="w-4 h-4 ml-1" />
+                                                        </Button>
+                                                    </Link>
+                                                )}
+
+                                                {/* Edit button for videos with or without subtitles */}
+                                                <Link href={`/edit/${video.id}`}>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-1"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                        Edit
                                                     </Button>
                                                 </Link>
-                                            )}
 
-                                            {/* Edit button placeholder for videos with subtitles */}
-                                            <Link href={`/edit/${video.id}`} className="text-blue-400 hover:underline text-sm">
-                                                Edit
-                                            </Link>
+                                                {/* Delete button */}
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 hover:bg-red-500/20 text-red-300 gap-1"
+                                                    onClick={() => handleDeleteVideo(video.id)}
+                                                    disabled={deletingVideo === video.id}
+                                                >
+                                                    {deletingVideo === video.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </li>
+                                    </motion.li>
                                 )
                             })}
-                        </ul>
+                        </motion.ul>
                     )}
                 </div>
             </div>
+        </div>
+    )
+}
+
+// Skeleton loaders
+function DashboardSkeleton() {
+    return (
+        <div className="container mx-auto px-4 py-12">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-4">
+                <div>
+                    <Skeleton className="w-48 h-8 mb-2" />
+                    <Skeleton className="w-72 h-5" />
+                </div>
+                <div className="flex gap-3">
+                    <Skeleton className="w-36 h-10" />
+                    <Skeleton className="w-28 h-10" />
+                </div>
+            </div>
+
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/10">
+                <VideoListSkeleton />
+            </div>
+        </div>
+    )
+}
+
+function VideoListSkeleton() {
+    // Create an array to render multiple skeleton items
+    const skeletonItems = Array.from({ length: 3 }, (_, i) => i)
+
+    return (
+        <div className="divide-y divide-white/10">
+            {skeletonItems.map((item) => (
+                <div key={item} className="py-5 flex flex-col md:flex-row gap-4">
+                    {/* Thumbnail skeleton */}
+                    <Skeleton className="w-full md:w-48 h-32 md:h-24" />
+
+                    {/* Content skeleton */}
+                    <div className="flex-1 min-w-0 flex flex-col md:flex-row justify-between gap-4">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Skeleton className="w-48 h-6" />
+                                <Skeleton className="w-24 h-6 rounded-full" />
+                            </div>
+                            <Skeleton className="w-32 h-5" />
+                        </div>
+
+                        {/* Action buttons skeleton */}
+                        <div className="flex items-center gap-3 mt-2 md:mt-0">
+                            <Skeleton className="w-36 h-9" />
+                            <Skeleton className="w-20 h-9" />
+                            <Skeleton className="w-10 h-9" />
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+function EmptyState() {
+    return (
+        <div className="py-16 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <FileVideo className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">No videos yet</h3>
+            <p className="text-slate-400 text-center max-w-md mb-6">
+                Upload your first video to get started with automatic captions
+            </p>
+            <Link
+                href="/upload"
+                className={buttonVariants({
+                    variant: "default",
+                    className: "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 shadow-lg shadow-blue-500/20 border border-white/10 gap-2"
+                })}
+            >
+                <Plus className="w-4 h-4" />
+                Upload Video
+            </Link>
         </div>
     )
 } 

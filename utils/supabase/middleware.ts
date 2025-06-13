@@ -54,11 +54,10 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
   ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("redirect", request.nextUrl.pathname);
-    console.log("Redirecting to:", url.toString());
-    return NextResponse.redirect(url);
+    // const url = request.nextUrl.clone();
+    // url.pathname = "/login";
+    // url.searchParams.set("redirect", request.nextUrl.pathname);
+    // return NextResponse.redirect(url);
   }
 
   return response;
