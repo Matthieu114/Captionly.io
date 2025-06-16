@@ -343,59 +343,44 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-3 mt-2 md:mt-0">
-                                                {/* Generate Subtitles CTA for ready videos */}
+                                            {/* Video actions */}
+                                            <div className="flex gap-2 mt-4 md:mt-0">
                                                 {video.status === 'ready' && (
                                                     <Button
+                                                        size="sm"
+                                                        variant="default"
+                                                        className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
                                                         onClick={() => handleGenerateSubtitles(video.id)}
                                                         disabled={generatingSubtitles === video.id}
-                                                        size="sm"
-                                                        className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 border border-white/10 gap-1"
                                                     >
                                                         {generatingSubtitles === video.id ? (
                                                             <>
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                                Starting...
+                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                Processing...
                                                             </>
                                                         ) : (
-                                                            'Generate Subtitles'
+                                                            <>Generate Subtitles</>
                                                         )}
                                                     </Button>
                                                 )}
-
-                                                {/* Process button for transcribing videos */}
+                                                
                                                 {video.status === 'transcribing' && (
-                                                    <Link href={`/process/${video.id}`}>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-1"
-                                                        >
-                                                            <Clock className="w-4 h-4" />
-                                                            View Progress
-                                                            <ChevronRight className="w-4 h-4 ml-1" />
-                                                        </Button>
+                                                    <Link
+                                                        href={`/process/${video.id}`}
+                                                        className={buttonVariants({
+                                                            variant: "outline",
+                                                            size: "sm",
+                                                            className: "bg-white/5 backdrop-blur-sm border border-white/10"
+                                                        })}
+                                                    >
+                                                        View Progress
                                                     </Link>
                                                 )}
-
-                                                {/* Edit button for videos with or without subtitles */}
-                                                <Link href={`/edit/${video.id}`}>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-1"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                        Edit
-                                                    </Button>
-                                                </Link>
-
-                                                {/* Delete button */}
+                                                
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 hover:bg-red-500/20 text-red-300 gap-1"
+                                                    className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10"
                                                     onClick={() => handleDeleteVideo(video.id)}
                                                     disabled={deletingVideo === video.id}
                                                 >

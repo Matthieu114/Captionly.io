@@ -7,8 +7,12 @@ export type Database = {
           created_at: string
           user_id: string
           title: string
-          status: 'uploading' | 'ready' | 'error' | 'transcribing'
+          status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'rendering' | 'rendered'
           processed_url: string | null
+          captioned_url: string | null
+          storage_path: string
+          original_url: string | null
+          thumbnail_url: string | null
           duration: number
           size: number
         }
@@ -17,9 +21,13 @@ export type Database = {
           created_at?: string
           user_id: string
           title: string
-          status: 'uploading' | 'ready' | 'error' | 'transcribing'
+          status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'rendering' | 'rendered'
           processed_url?: string | null
-          duration: number
+          captioned_url?: string | null
+          storage_path?: string
+          original_url?: string | null
+          thumbnail_url?: string | null
+          duration?: number
           size: number
         }
         Update: {
@@ -27,8 +35,12 @@ export type Database = {
           created_at?: string
           user_id?: string
           title?: string
-          status?: 'uploading' | 'ready' | 'error' | 'transcribing'
+          status?: 'uploading' | 'ready' | 'error' | 'transcribing' | 'rendering' | 'rendered'
           processed_url?: string | null
+          captioned_url?: string | null
+          storage_path?: string
+          original_url?: string | null
+          thumbnail_url?: string | null
           duration?: number
           size?: number
         }
