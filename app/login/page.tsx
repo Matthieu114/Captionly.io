@@ -24,8 +24,6 @@ export default function LoginPage() {
         }
     }, [user, loading, router, redirectTo])
 
-    // Don't return null here, instead render conditionally later
-
     async function handleEmailLogin(e: React.FormEvent) {
         e.preventDefault()
         setLoadingAuth(true)

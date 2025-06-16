@@ -1,0 +1,110 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Supabase SSR Authentication and Accessing User Data in Next.js
+When using Supabase with Next.js App Router and the new @supabase/ssr package, the recommended approach is to refresh and validate the auth token in middleware and then fetch user data in server components. In particular, always use supabase.auth.getUser() on the server side (middleware or server components) to retrieve the user; never rely on getSession() in server code. The official docs emphasize:
+“Always use supabase.auth.getUser() to protect pages and user data. Never trust supabase.auth.getSession() inside server code… It isn’t guaranteed to revalidate the Auth token. It’s safe to trust getUser() because it sends a request to the Supabase Auth server every time to revalidate the Auth token.”
+supabase.com
+.
+In practice, this means modifying your middleware and server pages to call getUser(). For example, after setting up the Supabase client with cookies, you would do:
+js
+Copier
+Modifier
+const { data: { user } } = await supabase.auth.getUser()
+if (!user && isProtectedRoute) {
+  // redirect to login, etc.
+}
+The Supabase middleware should handle three tasks
+supabase.com
+:
+Refresh the Auth token by calling supabase.auth.getUser(). This ensures any expired tokens are renewed and returns the current user object.
+Pass the refreshed token to server components (so pages don’t need to refresh again). This is done via request.cookies.set(...).
+Pass the refreshed token to the browser to update the cookie. This is done via response.cookies.set(...).
+The Supabase docs’ example middleware follows this pattern: it creates a createServerClient with cookie handlers, calls getUser(), and then redirects to login if no user is found
+supabase.com
+. Your code was calling getSession() instead of getUser(), which explains why you “don’t have user data” – getSession() simply reads cookies (which may not be populated or validated). For example, the docs show in a protected server page:
+js
+Copier
+Modifier
+const supabase = await createClient()
+const { data, error } = await supabase.auth.getUser()
+if (error || !data?.user) {
+  redirect('/login')
+}
+return <p>Hello {data.user.email}</p>
+Here data.user.email contains the authenticated user’s email
+supabase.com
+. In other words, after middleware refreshes the session, use supabase.auth.getUser() in your server code to actually read the current user. A StackOverflow answer confirms this:
+“You get user data with: const { data: { user } } = await supabase.auth.getUser(); This has replaced the older getSession() calls.”
+stackoverflow.com
+.
+So update your middleware (and any server actions/pages) to call getUser() and then use user from the result.
+Creating Supabase Clients (Server vs Browser)
+Make sure you’re using the correct client helpers in each context. The @supabase/ssr package provides two creators:
+createServerClient – for server-side code (middleware, server components, route handlers). This reads/writes cookies via Next.js APIs (as you are doing).
+createBrowserClient – for client-side/browser code (client components). This uses localStorage by default.
+In your code, you use createServerClient with a cookie store, which is correct for server components. For example:
+ts
+Copier
+Modifier
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+export async function createClient() {
+  const cookieStore = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookieList) => {
+          cookieList.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        }
+      }
+    }
+  );
+}
+(This matches the docs for a server-side client.) When you do need a client in the browser (e.g. for real-time subscriptions or client actions), you should call createBrowserClient from @supabase/ssr in a client component – not the old @supabase/supabase-js client with persistSession. In fact, if you use the traditional supabase-js client, it won’t read your SSR cookies (it only looks at localStorage), so the user will appear anonymous. As a Supabase maintainer noted:
+“If you are using SSR then you have to also use the SSR code to get a browser client. supabase-js will know nothing about cookies as it uses local storage.”
+github.com
+.
+And indeed, in SSR mode the auth tokens are kept in cookies; a plain supabase-js client won’t see them (and will run as an anonymous user)
+github.com
+.
+Summary and Fix
+To fix your issue, update your middleware and server code as follows:
+In middleware, use supabase.auth.getUser() instead of getSession(). This will refresh the session and give you the actual user. Then set the cookies on response as shown in the docs. Redirect unauthenticated users on protected routes if user is null.
+In server components/pages, import and call your server Supabase client (the createClient() above) and then use const { data: { user }, error } = await supabase.auth.getUser() to get the current user. If there’s an error or no user, redirect to login.
+Ensure that any client-side code uses createBrowserClient from @supabase/ssr if it needs to call Supabase from the browser.
+By following the official flow (middleware refresh + getUser() in server code), you’ll correctly retrieve the authenticated user. For example:
+jsx
+Copier
+Modifier
+// app/private/page.tsx (server component)
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+
+export default async function PrivatePage() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) {
+    redirect('/login');
+  }
+  return <p>Hello {data.user.email}</p>;
+}
+This pattern is from the Supabase docs
+supabase.com
+. The key points are to trust getUser() on the server and to use the SSR client helpers, which ensures your user data becomes available. Sources: Official Supabase SSR docs and examples
+supabase.com
+supabase.com
+supabase.com
+; community answers confirming getUser() usage
+stackoverflow.com
+; and Supabase maintainer guidance on SSR vs browser clients
+github.com
+github.com
+.

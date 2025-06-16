@@ -136,6 +136,7 @@ export default function DashboardPage() {
 
             const response = await fetch('/api/generate-subtitles', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(session && { 'Authorization': `Bearer ${session.access_token}` })
