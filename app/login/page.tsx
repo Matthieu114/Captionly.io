@@ -3,16 +3,17 @@
 import { useUser } from "@/lib/useUser"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { createClient } from '@/utils/supabase/client'
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import Link from "next/link"
+import Link from "next/link"    
 
 export default function LoginPage() {
     const { user, loading } = useUser()
     const router = useRouter()
     const searchParams = useSearchParams()
     const redirectTo = searchParams.get("redirect") || "/dashboard"
+    const supabase = createClient()
 
     const [email, setEmail] = useState("")
     const [loadingAuth, setLoadingAuth] = useState(false)

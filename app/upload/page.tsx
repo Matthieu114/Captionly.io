@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/lib/useUser"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { Upload, X, ArrowLeft, FileVideo, CheckCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,7 @@ export default function UploadPage() {
     const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
+    const supabase = createClient()
 
     const validateFile = useCallback((file: File) => {
         setError(null)
@@ -126,14 +127,17 @@ export default function UploadPage() {
         try {
             setProcessingThumbnail(true)
 
-            // Get the session for authentication
-            const { data: { session } } = await supabase.auth.getSession()
+            // Get the user for authentication
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (!user) {
+                throw new Error("Authentication required")
+            }
 
             const response = await fetch('/api/extract-thumbnail', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(session && { 'Authorization': `Bearer ${session.access_token}` })
                 },
                 body: JSON.stringify({
                     videoId,

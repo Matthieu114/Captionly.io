@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { useUser } from "@/lib/useUser"
 
 interface Video {
@@ -20,6 +20,7 @@ export default function ProcessPage() {
     const router = useRouter()
     const params = useParams()
     const videoId = params.videoId as string
+    const supabase = createClient()
 
     useEffect(() => {
         if (!loading && !user) {

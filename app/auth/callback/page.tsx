@@ -2,11 +2,12 @@
 
 import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 
 export default function AuthCallbackPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const supabase = createClient()
 
     useEffect(() => {
         const fetchSession = async () => {
@@ -44,7 +45,7 @@ export default function AuthCallbackPage() {
         };
 
         fetchSession();
-    }, [router, searchParams])
+    }, [router, searchParams, supabase])
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155]">

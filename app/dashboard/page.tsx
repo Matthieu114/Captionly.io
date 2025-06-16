@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/client"
 import { useUser } from "@/lib/useUser"
 import Link from "next/link"
 import Image from "next/image"
@@ -35,13 +35,14 @@ interface Video {
 }
 
 export default function DashboardPage() {
-    const { user, loading } = useUser()
+    const { user, loading, logout } = useUser()
     const [videos, setVideos] = useState<Video[]>([])
     const [fetching, setFetching] = useState(false)
     const [generatingSubtitles, setGeneratingSubtitles] = useState<string | null>(null)
     const [deletingVideo, setDeletingVideo] = useState<string | null>(null)
     const router = useRouter()
     const { toast } = useToast()
+    const supabase = createClient()
 
     // Animation variants
     const containerVariants = {
@@ -60,8 +61,7 @@ export default function DashboardPage() {
     }
 
     async function handleLogout() {
-        await supabase.auth.signOut()
-        router.replace("/")
+        await logout()
     }
 
     async function handleDeleteVideo(videoId: string) {
@@ -131,15 +131,17 @@ export default function DashboardPage() {
         setGeneratingSubtitles(videoId)
 
         try {
-            // Get the session for authentication
-            const { data: { session } } = await supabase.auth.getSession()
+            // Get the user for authentication
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (!user) {
+                throw new Error("Authentication required")
+            }
 
             const response = await fetch('/api/generate-subtitles', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(session && { 'Authorization': `Bearer ${session.access_token}` })
                 },
                 body: JSON.stringify({ videoId }),
             })
