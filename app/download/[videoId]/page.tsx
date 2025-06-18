@@ -8,11 +8,12 @@ import Link from "next/link"
 import { ArrowLeft, Download, Share2, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
+import { VideoPlayer } from "@/components/VideoPlayer"
 
 interface Video {
   id: string
   title: string
-  status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'rendered'
+  status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'captioned' | 'rendering' | 'rendered'
   created_at: string
   original_url?: string
   captioned_url?: string
@@ -199,18 +200,10 @@ export default function DownloadPage() {
           <div className="bg-white/5 backdrop-blur-sm rounded-xl shadow-xl p-8 border border-white/10 mb-8">
             {/* Video preview */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden mb-8">
-              {video.captioned_url ? (
-                <video 
-                  src={video.captioned_url} 
-                  className="w-full h-full object-contain"
-                  controls
-                  poster={video.thumbnail_url}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <p className="text-slate-400">Video preview not available</p>
-                </div>
-              )}
+              <VideoPlayer 
+                videoId={videoId} 
+                controls={true}
+              />
             </div>
             
             {/* Action buttons */}

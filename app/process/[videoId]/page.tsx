@@ -10,7 +10,7 @@ import { ArrowLeft } from "lucide-react"
 interface Video {
     id: string
     title: string
-    status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'rendering' | 'rendered'
+    status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'captioned' | 'rendering' | 'rendered'
     created_at: string
 }
 
@@ -97,7 +97,7 @@ export default function ProcessPage() {
 
                 // Handle redirects based on status and stage
                 if (stage !== 'rendering') {
-                    if (data.status === 'ready') {
+                    if (data.status === 'ready' || data.status === 'captioned') {
                         router.replace(`/edit/${videoId}`)
                     } else if (data.status === 'rendered') {
                         router.replace(`/download/${videoId}`)
@@ -132,7 +132,7 @@ export default function ProcessPage() {
 
                     // Handle redirects based on status updates
                     if (stage !== 'rendering') {
-                        if (updatedVideo.status === 'ready') {
+                        if (updatedVideo.status === 'ready' || updatedVideo.status === 'captioned') {
                             setTimeout(() => {
                                 router.replace(`/edit/${videoId}`)
                             }, 2000)

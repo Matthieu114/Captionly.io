@@ -261,10 +261,10 @@ async function processVideoTranscription(videoId: string, storagePath: string) {
       throw new Error(`Failed to save captions: ${captionsError.message}`);
     }
 
-    // Update video status to ready
+    // Update video status to captioned
     const { error: statusError } = await supabase
       .from("videos")
-      .update({ status: "ready" })
+      .update({ status: "captioned" })
       .eq("id", videoId);
 
     if (statusError) {

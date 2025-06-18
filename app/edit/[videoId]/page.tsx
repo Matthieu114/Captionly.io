@@ -8,11 +8,13 @@ import Link from "next/link"
 import { ArrowLeft, Play, Pause, ChevronRight, Trash2, Plus, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
+import { v4 as uuidv4 } from 'uuid'
+import { VideoPlayer, VideoPlayerHandle } from "@/components/VideoPlayer"
 
 interface Video {
   id: string
   title: string
-  status: 'uploading' | 'ready' | 'error' | 'transcribing'
+  status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'captioned' | 'rendering' | 'rendered'
   created_at: string
   original_url?: string
 }
@@ -36,7 +38,7 @@ export default function EditPage() {
   const [activeCaptionId, setActiveCaptionId] = useState<string | null>(null)
   const [rendering, setRendering] = useState(false)
   
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRef = useRef<VideoPlayerHandle>(null)
   const router = useRouter()
   const params = useParams()
   const videoId = params.videoId as string
@@ -67,7 +69,17 @@ export default function EditPage() {
 
         setVideo(videoData)
 
-        // For the MVP, we'll create fake captions if none exist
+        // Update status to captioned if needed
+        if (videoData.status === 'ready') {
+          await supabase
+            .from("videos")
+            .update({ status: 'captioned' })
+            .eq("id", videoId)
+          
+          videoData.status = 'captioned'
+        }
+
+        // Fetch captions
         const { data: captionsData, error: captionsError } = await supabase
           .from("captions")
           .select("*")
@@ -76,12 +88,18 @@ export default function EditPage() {
 
         if (captionsError) throw captionsError
 
-        // If no captions exist, create fake ones for testing
-        if (!captionsData || captionsData.length === 0) {
+        // Process captions - convert milliseconds to seconds
+        if (captionsData && captionsData.length > 0) {
+          const processedCaptions = captionsData.map(caption => ({
+            ...caption,
+            // Always convert from milliseconds to seconds
+            start_time: caption.start_time / 1000,
+            end_time: caption.end_time / 1000
+          }))
+          setCaptions(processedCaptions)
+        } else {
           const fakeCaptions = generateFakeCaptions(videoId)
           setCaptions(fakeCaptions)
-        } else {
-          setCaptions(captionsData)
         }
 
         setFetching(false)
@@ -95,56 +113,36 @@ export default function EditPage() {
     fetchVideoAndCaptions()
   }, [user, loading, videoId, router])
 
-  // Handle video playback
-  useEffect(() => {
-    if (!videoRef.current) return
-
-    const handleTimeUpdate = () => {
-      if (videoRef.current) {
-        setCurrentTime(videoRef.current.currentTime)
-        
-        // Find the active caption based on current time
-        const activeCaption = captions.find(
-          caption => 
-            currentTime >= caption.start_time && 
-            currentTime <= caption.end_time
-        )
-        
-        setActiveCaptionId(activeCaption?.id || null)
-      }
-    }
-
-    const videoElement = videoRef.current
-    videoElement.addEventListener('timeupdate', handleTimeUpdate)
+  // Handle time update from video player
+  const handleTimeUpdate = (time: number) => {
+    setCurrentTime(time)
     
-    return () => {
-      videoElement.removeEventListener('timeupdate', handleTimeUpdate)
-    }
-  }, [captions, currentTime])
+    // Find the active caption based on current time
+    const activeCaption = captions.find(
+      caption => 
+        time >= caption.start_time && 
+        time <= caption.end_time
+    )
+    
+    setActiveCaptionId(activeCaption?.id || null)
+  }
 
-  // Toggle play/pause
-  const togglePlayPause = () => {
-    if (!videoRef.current) return
-    
-    if (isPlaying) {
-      videoRef.current.pause()
-    } else {
-      videoRef.current.play()
-    }
-    
-    setIsPlaying(!isPlaying)
+  // Handle play state change
+  const handlePlayStateChange = (playing: boolean) => {
+    setIsPlaying(playing)
   }
 
   // Jump to specific caption
   const jumpToCaption = (caption: Caption) => {
     if (!videoRef.current) return
     
-    videoRef.current.currentTime = caption.start_time
+    videoRef.current.seek(caption.start_time)
     setActiveCaptionId(caption.id)
     
     if (!isPlaying) {
-      videoRef.current.play()
-      setIsPlaying(true)
+      videoRef.current.play().catch(err => {
+        console.error("Error playing video:", err)
+      })
     }
   }
 
@@ -162,20 +160,51 @@ export default function EditPage() {
     setCaptions(prevCaptions => prevCaptions.filter(caption => caption.id !== id))
   }
 
+  // Add a new caption
+  const addCaption = () => {
+    // Find the last caption's end time or default to 0
+    const lastCaption = captions[captions.length - 1]
+    const startTime = lastCaption ? lastCaption.end_time + 0.1 : 0
+    const endTime = startTime + 3 // Default 3 second duration
+    
+    const newCaption: Caption = {
+      id: uuidv4(), // Generate a unique ID
+      video_id: videoId,
+      start_time: startTime,
+      end_time: endTime,
+      text: "New caption"
+    }
+    
+    setCaptions(prevCaptions => [...prevCaptions, newCaption])
+  }
+
   // Save captions
   const saveCaptions = async () => {
     try {
+      // Update video status to captioned if not already
+      if (video && video.status !== 'captioned') {
+        await supabase
+          .from("videos")
+          .update({ status: 'captioned' })
+          .eq("id", videoId)
+        
+        setVideo({...video, status: 'captioned'})
+      }
+
       // For each caption, upsert it to the database
       for (const caption of captions) {
+        // Convert seconds back to milliseconds as integers
+        const captionToSave = {
+          id: caption.id,
+          video_id: caption.video_id,
+          start_time: Math.round(caption.start_time * 1000), // Convert to milliseconds
+          end_time: Math.round(caption.end_time * 1000),     // Convert to milliseconds
+          text: caption.text
+        }
+        
         const { error } = await supabase
           .from("captions")
-          .upsert({
-            id: caption.id,
-            video_id: caption.video_id,
-            start_time: caption.start_time,
-            end_time: caption.end_time,
-            text: caption.text
-          })
+          .upsert(captionToSave)
         
         if (error) throw error
       }
@@ -203,6 +232,12 @@ export default function EditPage() {
     try {
       // Save captions first
       await saveCaptions()
+      
+      // Update status to rendering
+      await supabase
+        .from("videos")
+        .update({ status: 'rendering' })
+        .eq("id", videoId)
       
       // Redirect to processing page with rendering parameter
       router.push(`/process/${videoId}?stage=rendering`)
@@ -322,51 +357,21 @@ export default function EditPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Video player */}
             <div className="bg-black rounded-lg overflow-hidden relative">
-              {video.original_url ? (
-                <video 
-                  ref={videoRef}
-                  src={video.original_url} 
-                  className="w-full aspect-video"
-                  controls={false}
-                />
-              ) : (
-                <div className="w-full aspect-video bg-slate-800 flex items-center justify-center">
-                  <p className="text-slate-400">Video preview not available</p>
-                </div>
-              )}
+              <VideoPlayer 
+                videoId={videoId} 
+                onTimeUpdate={handleTimeUpdate}
+                onPlayStateChange={handlePlayStateChange}
+                ref={videoRef}
+              />
               
               {/* Caption overlay */}
-              {isPlaying && activeCaptionId && (
+              {activeCaptionId && (
                 <div className="absolute bottom-16 left-0 right-0 flex justify-center">
                   <div className="bg-black/70 text-white px-4 py-2 rounded-md text-lg max-w-[80%] text-center">
                     {captions.find(c => c.id === activeCaptionId)?.text}
                   </div>
                 </div>
               )}
-              
-              {/* Video controls */}
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-4 flex items-center gap-4">
-                <button 
-                  onClick={togglePlayPause}
-                  className="text-white hover:text-blue-400 transition"
-                >
-                  {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-                
-                <div className="text-white text-sm">
-                  {formatTime(currentTime)}
-                </div>
-                
-                {/* Progress bar would go here in a full implementation */}
-                <div className="flex-1 h-1 bg-white/20 rounded-full">
-                  {videoRef.current && videoRef.current.duration && (
-                    <div 
-                      className="h-1 bg-blue-500 rounded-full" 
-                      style={{ width: `${(currentTime / videoRef.current.duration) * 100}%` }}
-                    />
-                  )}
-                </div>
-              </div>
             </div>
             
             {/* Caption styling options */}
@@ -387,7 +392,7 @@ export default function EditPage() {
                   <label className="block text-sm text-slate-400 mb-2">Font Size</label>
                   <select className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-white">
                     <option>Small</option>
-                    <option selected>Medium</option>
+                    <option>Medium</option>
                     <option>Large</option>
                   </select>
                 </div>
@@ -465,6 +470,7 @@ export default function EditPage() {
               <Button 
                 variant="outline" 
                 className="w-full flex items-center justify-center gap-2 bg-white/5"
+                onClick={addCaption}
               >
                 <Plus size={16} />
                 Add Caption

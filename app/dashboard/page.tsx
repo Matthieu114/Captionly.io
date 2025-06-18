@@ -21,14 +21,18 @@ import {
     Clock,
     AlertCircle,
     CheckCircle2,
-    Loader2
+    Loader2,
+    UploadCloud,
+    CheckCircle,
+    FileText,
+    HelpCircle
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Video {
     id: string
     title: string
-    status: 'uploading' | 'ready' | 'error' | 'transcribing'
+    status: 'uploading' | 'ready' | 'error' | 'transcribing' | 'captioned' | 'rendering' | 'rendered'
     created_at: string
     original_url?: string
     captioned_url?: string
@@ -197,30 +201,45 @@ export default function DashboardPage() {
     }, [user])
 
     function getStatusIcon(status: Video['status']) {
-        const iconClasses = "w-5 h-5";
         switch (status) {
-            case 'ready':
-                return <CheckCircle2 className={`text-green-400 ${iconClasses}`} />;
-            case 'transcribing':
-                return <Clock className={`text-purple-400 ${iconClasses}`} />;
             case 'uploading':
-                return <Loader2 className={`text-blue-400 animate-spin ${iconClasses}`} />;
+                return <UploadCloud className="w-3.5 h-3.5" />
+            case 'ready':
+                return <CheckCircle className="w-3.5 h-3.5" />
             case 'error':
-                return <AlertCircle className={`text-red-400 ${iconClasses}`} />;
+                return <AlertCircle className="w-3.5 h-3.5" />
+            case 'transcribing':
+                return <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            case 'captioned':
+                return <FileText className="w-3.5 h-3.5" />
+            case 'rendering':
+                return <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            case 'rendered':
+                return <CheckCircle className="w-3.5 h-3.5" />
             default:
-                return null;
+                return <HelpCircle className="w-3.5 h-3.5" />
         }
     }
 
     function getStatusDisplay(status: Video['status']) {
-        const statusMap = {
-            uploading: { color: 'bg-blue-500/30 text-blue-300 border-blue-500/30', text: 'Uploading' },
-            ready: { color: 'bg-green-500/30 text-green-300 border-green-500/30', text: 'Ready' },
-            transcribing: { color: 'bg-purple-500/30 text-purple-300 border-purple-500/30', text: 'Transcribing' },
-            error: { color: 'bg-red-500/30 text-red-300 border-red-500/30', text: 'Error' }
+        switch (status) {
+            case 'uploading':
+                return { text: 'Uploading', color: 'text-blue-400 border-blue-400/30' }
+            case 'ready':
+                return { text: 'Ready', color: 'text-green-400 border-green-400/30' }
+            case 'error':
+                return { text: 'Error', color: 'text-red-400 border-red-400/30' }
+            case 'transcribing':
+                return { text: 'Transcribing', color: 'text-amber-400 border-amber-400/30' }
+            case 'captioned':
+                return { text: 'Captioned', color: 'text-purple-400 border-purple-400/30' }
+            case 'rendering':
+                return { text: 'Rendering', color: 'text-amber-400 border-amber-400/30' }
+            case 'rendered':
+                return { text: 'Rendered', color: 'text-green-400 border-green-400/30' }
+            default:
+                return { text: 'Unknown', color: 'text-slate-400 border-slate-400/30' }
         }
-
-        return statusMap[status] || statusMap.error
     }
 
     // Loading skeleton
@@ -355,6 +374,45 @@ export default function DashboardPage() {
                                                         })}
                                                     >
                                                         View Progress
+                                                    </Link>
+                                                )}
+
+                                                {video.status === 'captioned' && (
+                                                    <Link
+                                                        href={`/edit/${video.id}`}
+                                                        className={buttonVariants({
+                                                            variant: "default",
+                                                            size: "sm",
+                                                            className: "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                                                        })}
+                                                    >
+                                                        Edit Captions
+                                                    </Link>
+                                                )}
+
+                                                {video.status === 'rendering' && (
+                                                    <Link
+                                                        href={`/process/${video.id}?stage=rendering`}
+                                                        className={buttonVariants({
+                                                            variant: "outline",
+                                                            size: "sm",
+                                                            className: "bg-white/5 backdrop-blur-sm border border-white/10"
+                                                        })}
+                                                    >
+                                                        View Progress
+                                                    </Link>
+                                                )}
+
+                                                {video.status === 'rendered' && (
+                                                    <Link
+                                                        href={`/download/${video.id}`}
+                                                        className={buttonVariants({
+                                                            variant: "default",
+                                                            size: "sm",
+                                                            className: "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                                                        })}
+                                                    >
+                                                        Download
                                                     </Link>
                                                 )}
 

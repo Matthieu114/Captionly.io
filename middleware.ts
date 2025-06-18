@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   return await updateSession(request);
 }
 
-// Matcher: Exclude static, image, API, and favicon routes
+// Matcher: Include all routes including API routes, but exclude static assets
 export const config = {
   matcher: [
     /*
