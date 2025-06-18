@@ -8,6 +8,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ThumbnailImage } from "@/components/ThumbnailImage"
 import { motion } from "framer-motion"
 import {
     Plus,
@@ -289,37 +290,17 @@ export default function DashboardPage() {
                                     >
                                         {/* Video thumbnail */}
                                         <div className="relative w-full md:w-48 h-32 md:h-24 overflow-hidden rounded-lg bg-slate-800 flex-shrink-0">
-                                            {video.thumbnail_url ? (
-                                                <>
-                                                    <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-10 flex items-center justify-center">
-                                                        <PlayCircle className="w-10 h-10 text-white/70" />
-                                                    </div>
-                                                    <Image
-                                                        src={video.thumbnail_url}
-                                                        alt={video.title}
-                                                        width={192}
-                                                        height={108}
-                                                        className="object-cover w-full h-full"
-                                                        onError={(e) => {
-                                                            // Fallback on error
-                                                            e.currentTarget.src = '/video-placeholder.jpg';
-                                                        }}
-                                                    />
-                                                </>
-                                            ) : video.original_url ? (
-                                                <>
-                                                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex items-center justify-center">
-                                                        <PlayCircle className="w-10 h-10 text-white/70" />
-                                                    </div>
-                                                    <div className="flex items-center justify-center h-full">
-                                                        <FileVideo className="w-10 h-10 text-slate-500" />
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <FileVideo className="w-10 h-10 text-slate-500" />
-                                                </div>
-                                            )}
+                                            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm z-10 flex items-center justify-center">
+                                                <PlayCircle className="w-10 h-10 text-white/70" />
+                                            </div>
+                                            <ThumbnailImage
+                                                videoId={video.id}
+                                                title={video.title}
+                                                hasThumbnail={!!video.thumbnail_url}
+                                                width={192}
+                                                height={108}
+                                                className="object-cover w-full h-full"
+                                            />
                                         </div>
 
                                         {/* Video info */}
@@ -343,59 +324,44 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-3 mt-2 md:mt-0">
-                                                {/* Generate Subtitles CTA for ready videos */}
+                                            {/* Video actions */}
+                                            <div className="flex gap-2 mt-4 md:mt-0">
                                                 {video.status === 'ready' && (
                                                     <Button
+                                                        size="sm"
+                                                        variant="default"
+                                                        className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
                                                         onClick={() => handleGenerateSubtitles(video.id)}
                                                         disabled={generatingSubtitles === video.id}
-                                                        size="sm"
-                                                        className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 border border-white/10 gap-1"
                                                     >
                                                         {generatingSubtitles === video.id ? (
                                                             <>
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                                Starting...
+                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                Processing...
                                                             </>
                                                         ) : (
-                                                            'Generate Subtitles'
+                                                            <>Generate Subtitles</>
                                                         )}
                                                     </Button>
                                                 )}
 
-                                                {/* Process button for transcribing videos */}
                                                 {video.status === 'transcribing' && (
-                                                    <Link href={`/process/${video.id}`}>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-1"
-                                                        >
-                                                            <Clock className="w-4 h-4" />
-                                                            View Progress
-                                                            <ChevronRight className="w-4 h-4 ml-1" />
-                                                        </Button>
+                                                    <Link
+                                                        href={`/process/${video.id}`}
+                                                        className={buttonVariants({
+                                                            variant: "outline",
+                                                            size: "sm",
+                                                            className: "bg-white/5 backdrop-blur-sm border border-white/10"
+                                                        })}
+                                                    >
+                                                        View Progress
                                                     </Link>
                                                 )}
 
-                                                {/* Edit button for videos with or without subtitles */}
-                                                <Link href={`/edit/${video.id}`}>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 gap-1"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                        Edit
-                                                    </Button>
-                                                </Link>
-
-                                                {/* Delete button */}
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 hover:bg-red-500/20 text-red-300 gap-1"
+                                                    className="bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10"
                                                     onClick={() => handleDeleteVideo(video.id)}
                                                     disabled={deletingVideo === video.id}
                                                 >

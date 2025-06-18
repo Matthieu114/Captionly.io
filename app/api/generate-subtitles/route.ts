@@ -68,17 +68,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Trigger actual transcription process
-    // This is where we'll integrate with OpenAI Whisper or AssemblyAI
-    // For now, we'll just simulate the process
+    // In a real implementation, we would:
+    // 1. Start a background job to process the video
+    // 2. Use a service like OpenAI Whisper or AssemblyAI to transcribe the audio
+    // 3. Process the transcription results into timed captions
+    // 4. Save the captions to the database
+    
+    // For the demo, we'll simulate this process with a delayed status update
+    // In a production app, this would be handled by a separate worker process
+    setTimeout(async () => {
+      try {
+        // Generate fake captions (in a real app, these would come from the transcription service)
+        const fakeCaptions = [
+          {
+            id: `${videoId}-caption-1`,
+            video_id: videoId,
+            start_time: 0,
+            end_time: 3.5,
+            text: "Welcome to Captionly.io!"
+          },
+          {
+            id: `${videoId}-caption-2`,
+            video_id: videoId,
+            start_time: 3.6,
+            end_time: 7.2,
+            text: "This is a demo of our caption editor."
+          },
+          {
+            id: `${videoId}-caption-3`,
+            video_id: videoId,
+            start_time: 7.3,
+            end_time: 12.0,
+            text: "You can edit these captions, adjust timings, and render your video with embedded subtitles."
+          },
+          {
+            id: `${videoId}-caption-4`,
+            video_id: videoId,
+            start_time: 12.1,
+            end_time: 18.0,
+            text: "Click on any caption to jump to that point in the video."
+          }
+        ];
 
-    // In a real implementation, you would:
-    // 1. Get the video file from Supabase Storage
-    // 2. Send it to transcription service (Whisper/AssemblyAI)
-    // 3. Process the response and save captions
-    // 4. Update video status to 'ready' with captions
+        // Save the fake captions to the database
+        for (const caption of fakeCaptions) {
+          await supabase.from("captions").upsert(caption);
+        }
 
-    console.log(`Started transcription for video ${videoId}`);
+        // Update video status to ready
+        await supabase
+          .from("videos")
+          .update({ status: "ready" })
+          .eq("id", videoId);
+
+        console.log(`Completed transcription for video ${videoId}`);
+      } catch (error) {
+        console.error("Error in background transcription process:", error);
+        
+        // Update video status to error
+        await supabase
+          .from("videos")
+          .update({ status: "error" })
+          .eq("id", videoId);
+      }
+    }, 10000); // Simulate a 10-second transcription process
 
     return NextResponse.json({
       success: true,
