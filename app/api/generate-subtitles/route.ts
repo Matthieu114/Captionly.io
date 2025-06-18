@@ -4,7 +4,6 @@ import OpenAI from "openai";
 import { toFile } from "openai";
 import type { FileLike } from "openai/uploads";
 import path from "path";
-
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -31,6 +30,7 @@ async function downloadVideoFromStorage(
   }
 
   console.log(`Downloaded video blob, size: ${data.size} bytes`);
+  
 
   // Create a proper File object for OpenAI
   const fileName = path.basename(storagePath);
@@ -217,12 +217,11 @@ async function processVideoTranscription(videoId: string, storagePath: string) {
     supabase = await createClient();
 
     // Download video file from Supabase storage
-    const supabaseFile = await downloadVideoFromStorage(supabase, storagePath);
+    const supabaseFileLike = await downloadVideoFromStorage(supabase, storagePath);
 
     // Transcribe using OpenAI Whisper
-
     const transcription = await openai.audio.transcriptions.create({
-      file: supabaseFile,
+      file: supabaseFileLike,
       model: "whisper-1",
       response_format: "verbose_json",
       timestamp_granularities: ["segment"],
