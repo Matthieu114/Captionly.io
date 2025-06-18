@@ -55,11 +55,18 @@ export async function POST(request: NextRequest) {
     // Convert base64 to buffer
     const buffer = Buffer.from(base64Data, "base64");
 
-    // Create a path for the thumbnail
-    const storagePath = `thumbnails/${videoData.storage_path
-      .split("/")
-      .pop()
-      .replace(".mp4", ".jpg")}`;
+    // Create a path for the thumbnail following the same pattern as videos
+    // Extract the filename from the video storage path and change extension to .jpg
+    const videoFileName = videoData.storage_path.split("/").pop();
+    if (!videoFileName) {
+      return NextResponse.json(
+        { error: "Invalid video storage path" },
+        { status: 400 }
+      );
+    }
+
+    const thumbnailFileName = videoFileName.replace(".mp4", ".jpg");
+    const storagePath = `${user.id}/thumbnails/${thumbnailFileName}`;
 
     // Upload thumbnail to Supabase Storage
     const { error: uploadError } = await supabase.storage
@@ -77,15 +84,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get public URL for the thumbnail
-    const {
-      data: { publicUrl }
-    } = supabase.storage.from("videos").getPublicUrl(storagePath);
-
-    // Update video record with thumbnail URL
+    // Store the storage path instead of public URL for private access
+    // Update video record with thumbnail storage path
     const { error: updateError } = await supabase
       .from("videos")
-      .update({ thumbnail_url: publicUrl })
+      .update({ thumbnail_url: storagePath }) // Store storage path instead of public URL
       .eq("id", videoId);
 
     if (updateError) {
@@ -95,7 +98,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, thumbnailUrl: publicUrl });
+    return NextResponse.json({
+      success: true,
+      thumbnailStoragePath: storagePath,
+      message: "Thumbnail uploaded successfully"
+    });
   } catch (error) {
     console.error("Error extracting thumbnail:", error);
     return NextResponse.json(
