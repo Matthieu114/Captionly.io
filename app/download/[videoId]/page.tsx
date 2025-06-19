@@ -54,10 +54,16 @@ export default function DownloadPage() {
         if (error) throw error
         if (!data) throw new Error("Video not found")
 
-        // For demo purposes, we'll set a fake captioned URL if one doesn't exist
+        // Check if the video is in rendered status
+        if (data.status !== 'rendered') {
+          // Redirect back to process page if not rendered
+          router.replace(`/process/${videoId}?stage=rendering`)
+          return
+        }
+
+        // Verify we have a captioned URL
         if (!data.captioned_url) {
-          data.captioned_url = data.original_url
-          data.status = 'rendered'
+          throw new Error("Rendered video URL not found")
         }
 
         setVideo(data)
@@ -74,39 +80,60 @@ export default function DownloadPage() {
 
   // Handle download
   const handleDownload = async () => {
-    if (!video?.captioned_url) return
-    
-    setDownloading(true)
-    
     try {
-      // In a real implementation, you might want to track downloads
-      // or handle the download process differently
+      setDownloading(true);
       
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement('a')
-      link.href = video.captioned_url
-      link.download = `${video.title}-captioned.mp4`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // Get the rendered video path
+      const { data: videoData, error: videoError } = await supabase
+        .from("videos")
+        .select("rendered_path, title")
+        .eq("id", videoId)
+        .single();
+
+      if (videoError || !videoData) {
+        throw new Error("Failed to fetch video data");
+      }
+
+      if (!videoData.rendered_path) {
+        throw new Error("No rendered video available");
+      }
+
+      // Get a signed URL for download
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from("videos")
+        .createSignedUrl(videoData.rendered_path, 300); // 5 minutes for download
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error("Failed to generate download URL");
+      }
+
+      // Download the file
+      const response = await fetch(signedUrlData.signedUrl);
+      if (!response.ok) {
+        throw new Error("Failed to download video");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       
-      toast({
-        title: "Download started",
-        description: "Your video is downloading now.",
-        duration: 3000,
-      })
-    } catch (err) {
-      console.error("Download error:", err)
-      toast({
-        title: "Download failed",
-        description: "There was a problem downloading your video.",
-        variant: "destructive",
-        duration: 5000,
-      })
+      // Create download link
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${videoData.title || "captioned-video"}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error("Download error:", error);
+      // You might want to show a toast notification here
     } finally {
-      setDownloading(false)
+      setDownloading(false);
     }
-  }
+  };
 
   // Copy share link
   const handleCopyShareLink = () => {

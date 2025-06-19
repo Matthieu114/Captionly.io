@@ -20,6 +20,7 @@ export default function ProcessPage() {
     const [fetching, setFetching] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [progress, setProgress] = useState(0)
+    const [isStartingRender, setIsStartingRender] = useState(false)
     const router = useRouter()
     const params = useParams()
     const searchParams = useSearchParams()
@@ -27,39 +28,73 @@ export default function ProcessPage() {
     const stage = searchParams.get('stage') || 'transcribing'
     const supabase = createClient()
 
-    // Simulate progress for demo purposes
+    // Start rendering process if needed
+    useEffect(() => {
+        if (!video || stage !== 'rendering' || video.status === 'rendering' || video.status === 'rendered' || isStartingRender) return
+        
+        // Don't attempt to render if video is in error state
+        if (video.status === 'error') {
+            setError("Cannot render video due to previous error. Please try uploading the video again.")
+            return
+        }
+        
+        // Only attempt to render if video is captioned
+        if (video.status !== 'captioned') {
+            setError(`Video is not ready for rendering. Current status: ${video.status}`)
+            return
+        }
+        
+        const startRendering = async () => {
+            setIsStartingRender(true)
+            try {
+                const response = await fetch('/api/render-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ videoId }),
+                })
+                
+                if (!response.ok) {
+                    const errorData = await response.json()
+                    throw new Error(errorData.error || 'Failed to start rendering')
+                }
+                
+                // Update local state
+                setVideo(prev => prev ? { ...prev, status: 'rendering' } : null)
+            } catch (err) {
+                console.error('Error starting rendering:', err)
+                setError(err instanceof Error ? err.message : 'Failed to start rendering')
+            } finally {
+                setIsStartingRender(false)
+            }
+        }
+        
+        startRendering()
+    }, [video, stage, videoId, isStartingRender])
+
+    // Simulate progress for rendering - just for UI feedback, not real progress
     useEffect(() => {
         if (!video) return
         
-        if (stage === 'rendering' && video.status !== 'rendered') {
+        if (stage === 'rendering' && video.status === 'rendering') {
             // Simulate rendering progress
             const interval = setInterval(() => {
                 setProgress(prev => {
-                    if (prev >= 100) {
+                    if (prev >= 95) {
                         clearInterval(interval)
-                        
-                        // Simulate completion after reaching 100%
-                        setTimeout(() => {
-                            // Update video status to rendered
-                            supabase
-                                .from("videos")
-                                .update({ status: 'rendered' })
-                                .eq("id", videoId)
-                                .then(() => {
-                                    // Redirect to download page
-                                    router.replace(`/download/${videoId}`)
-                                })
-                        }, 1000)
-                        
-                        return 100
+                        return 95 // Cap at 95%, will jump to 100% when actually complete
                     }
-                    return prev + Math.random() * 5
+                    return prev + Math.random() * 3
                 })
-            }, 500)
+            }, 1000)
             
             return () => clearInterval(interval)
+        } else if (video.status === 'rendered') {
+            // When rendering is complete, set progress to 100%
+            setProgress(100)
         }
-    }, [video, stage, videoId, router])
+    }, [video, stage])
 
     useEffect(() => {
         if (!loading && !user) {
@@ -82,15 +117,7 @@ export default function ProcessPage() {
                 if (error) throw error
                 if (!data) throw new Error("Video not found")
 
-                // If we're in rendering stage, update the status
-                if (stage === 'rendering' && data.status !== 'rendering' && data.status !== 'rendered') {
-                    await supabase
-                        .from("videos")
-                        .update({ status: 'rendering' })
-                        .eq("id", videoId)
-                    
-                    data.status = 'rendering'
-                }
+                console.log("Fetched video data:", data) // Debug log
 
                 setVideo(data)
                 setFetching(false)
@@ -101,10 +128,14 @@ export default function ProcessPage() {
                         router.replace(`/edit/${videoId}`)
                     } else if (data.status === 'rendered') {
                         router.replace(`/download/${videoId}`)
+                    } else if (data.status === 'error') {
+                        setError("Video processing failed. Please try uploading the video again.")
                     }
                 } else if (data.status === 'rendered') {
                     // If already rendered, go to download
                     router.replace(`/download/${videoId}`)
+                } else if (data.status === 'error') {
+                    setError("Video processing failed. Cannot proceed with rendering.")
                 }
             } catch (err) {
                 console.error("Error fetching video:", err)
@@ -128,7 +159,13 @@ export default function ProcessPage() {
                 },
                 (payload) => {
                     const updatedVideo = payload.new as Video
+                    console.log("Video status updated:", updatedVideo) // Debug log
                     setVideo(updatedVideo)
+
+                    // Set progress to 100% when rendering is complete
+                    if (updatedVideo.status === 'rendered') {
+                        setProgress(100)
+                    }
 
                     // Handle redirects based on status updates
                     if (stage !== 'rendering') {
@@ -140,11 +177,15 @@ export default function ProcessPage() {
                             setTimeout(() => {
                                 router.replace(`/download/${videoId}`)
                             }, 2000)
+                        } else if (updatedVideo.status === 'error') {
+                            setError("Video processing failed.")
                         }
                     } else if (updatedVideo.status === 'rendered') {
                         setTimeout(() => {
                             router.replace(`/download/${videoId}`)
                         }, 2000)
+                    } else if (updatedVideo.status === 'error') {
+                        setError("Video rendering failed.")
                     }
                 }
             )
@@ -203,6 +244,7 @@ export default function ProcessPage() {
                     if (step === 'transcribe') return 'active'
                     return 'pending'
                 case 'ready':
+                case 'captioned':
                     return 'complete'
                 case 'error':
                     return 'error'
@@ -279,7 +321,7 @@ export default function ProcessPage() {
                             </div>
 
                             {/* Progress bar */}
-                            {video.status === 'rendering' && (
+                            {(video.status === 'rendering' || video.status === 'rendered') && (
                                 <div className="mt-2 mb-4">
                                     <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                                         <div 
@@ -327,7 +369,7 @@ export default function ProcessPage() {
                                     <p className="text-slate-400 text-sm">
                                         {video.status === 'transcribing'
                                             ? 'Converting speech to text using AI...'
-                                            : video.status === 'ready'
+                                            : video.status === 'ready' || video.status === 'captioned'
                                                 ? 'Audio transcription completed'
                                                 : 'Waiting to start transcription'
                                         }
@@ -337,11 +379,11 @@ export default function ProcessPage() {
 
                             {/* Syncing Step */}
                             <div className="flex items-center space-x-4">
-                                <StepIcon status={video.status === 'ready' ? 'complete' : 'pending'} />
+                                <StepIcon status={(video.status === 'ready' || video.status === 'captioned') ? 'complete' : 'pending'} />
                                 <div className="flex-1">
                                     <h3 className="text-lg font-semibold text-white">Syncing text to timestamps</h3>
                                     <p className="text-slate-400 text-sm">
-                                        {video.status === 'ready'
+                                        {(video.status === 'ready' || video.status === 'captioned')
                                             ? 'Subtitles have been synchronized with video'
                                             : 'Preparing to sync subtitles with video timing'
                                         }
@@ -351,11 +393,11 @@ export default function ProcessPage() {
 
                             {/* Complete Step */}
                             <div className="flex items-center space-x-4">
-                                <StepIcon status={video.status === 'ready' ? 'complete' : 'pending'} />
+                                <StepIcon status={(video.status === 'ready' || video.status === 'captioned') ? 'complete' : 'pending'} />
                                 <div className="flex-1">
                                     <h3 className="text-lg font-semibold text-white">Subtitles ready!</h3>
                                     <p className="text-slate-400 text-sm">
-                                        {video.status === 'ready'
+                                        {(video.status === 'ready' || video.status === 'captioned')
                                             ? 'Your subtitles are ready for editing'
                                             : 'Almost there...'
                                         }
@@ -365,7 +407,7 @@ export default function ProcessPage() {
                         </div>
                     )}
 
-                    {video.status === 'ready' && stage !== 'rendering' && (
+                    {(video.status === 'ready' || video.status === 'captioned') && stage !== 'rendering' && (
                         <div className="mt-8 text-center">
                             <p className="text-green-400 mb-4">✨ Processing complete! Redirecting to editor...</p>
                         </div>

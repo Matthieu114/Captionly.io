@@ -181,15 +181,26 @@ export default function EditPage() {
   // Save captions
   const saveCaptions = async () => {
     try {
+      console.log("Saving captions, current video status:", video?.status); // Debug log
+      
       // Update video status to captioned if not already
       if (video && video.status !== 'captioned') {
-        await supabase
+        console.log("Updating video status to captioned"); // Debug log
+        const { error: statusError } = await supabase
           .from("videos")
           .update({ status: 'captioned' })
           .eq("id", videoId)
         
+        if (statusError) {
+          console.error("Error updating video status:", statusError);
+          throw new Error("Failed to update video status to captioned");
+        }
+        
         setVideo({...video, status: 'captioned'})
+        console.log("Video status updated to captioned"); // Debug log
       }
+
+      console.log("Saving captions to database:", captions.length, "captions"); // Debug log
 
       // For each caption, upsert it to the database
       for (const caption of captions) {
@@ -206,8 +217,13 @@ export default function EditPage() {
           .from("captions")
           .upsert(captionToSave)
         
-        if (error) throw error
+        if (error) {
+          console.error("Error saving caption:", error, captionToSave);
+          throw error;
+        }
       }
+      
+      console.log("All captions saved successfully"); // Debug log
       
       toast({
         title: "Captions saved",
@@ -222,6 +238,7 @@ export default function EditPage() {
         variant: "destructive",
         duration: 5000,
       })
+      throw err; // Re-throw to handle in renderVideo
     }
   }
 
@@ -230,14 +247,35 @@ export default function EditPage() {
     setRendering(true)
     
     try {
+      console.log("Starting render process"); // Debug log
+      
       // Save captions first
       await saveCaptions()
       
-      // Update status to rendering
-      await supabase
-        .from("videos")
-        .update({ status: 'rendering' })
-        .eq("id", videoId)
+      // Add a small delay to ensure database is updated
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      console.log("Calling render-video API"); // Debug log
+      
+      // Call the render-video API to start the rendering process
+      const response = await fetch('/api/render-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videoId }),
+      })
+      
+      console.log("Render API response status:", response.status); // Debug log
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Render API error:", errorData); // Debug log
+        throw new Error(errorData.error || 'Failed to start rendering')
+      }
+      
+      const responseData = await response.json()
+      console.log("Render API success:", responseData); // Debug log
       
       // Redirect to processing page with rendering parameter
       router.push(`/process/${videoId}?stage=rendering`)
@@ -245,7 +283,7 @@ export default function EditPage() {
       console.error("Error starting render:", err)
       toast({
         title: "Error",
-        description: "Failed to start rendering process.",
+        description: err instanceof Error ? err.message : "Failed to start rendering process.",
         variant: "destructive",
         duration: 5000,
       })

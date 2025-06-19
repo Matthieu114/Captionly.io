@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, forwardRef, ForwardedRef, useImperativeHandle } from "react"
 import { useVideoUrl } from "@/lib/useVideoUrl"
-import { Play, Pause } from "lucide-react"
+import { Play, Pause, AlertCircle } from "lucide-react"
 
 interface VideoPlayerProps {
   videoId: string
@@ -37,13 +37,19 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [videoError, setVideoError] = useState<string | null>(null)
   const { videoUrl, loading, error } = useVideoUrl(videoId)
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     play: async () => {
       if (videoRef.current) {
-        await videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (err) {
+          console.error("Error playing video:", err);
+          setVideoError("Failed to play video. Please try again.");
+        }
       }
     },
     pause: () => {
@@ -85,16 +91,22 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
       if (onPlayStateChange) onPlayStateChange(false)
     }
 
+    const handleError = () => {
+      setVideoError("Error loading video. Please try again.")
+    }
+
     videoElement.addEventListener('timeupdate', handleTimeUpdate)
     videoElement.addEventListener('durationchange', handleDurationChange)
     videoElement.addEventListener('play', handlePlay)
     videoElement.addEventListener('pause', handlePause)
+    videoElement.addEventListener('error', handleError)
 
     return () => {
       videoElement.removeEventListener('timeupdate', handleTimeUpdate)
       videoElement.removeEventListener('durationchange', handleDurationChange)
       videoElement.removeEventListener('play', handlePlay)
       videoElement.removeEventListener('pause', handlePause)
+      videoElement.removeEventListener('error', handleError)
     }
   }, [onTimeUpdate, onPlayStateChange])
 
@@ -102,9 +114,11 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   useEffect(() => {
     if (videoUrl && videoRef.current) {
       videoRef.current.load()
+      setVideoError(null)
       if (autoPlay) {
         videoRef.current.play().catch(err => {
           console.error("Error auto-playing video:", err)
+          setVideoError("Failed to auto-play video. Please click play.")
         })
       }
     }
@@ -119,6 +133,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
     } else {
       videoRef.current.play().catch(err => {
         console.error("Error playing video:", err)
+        setVideoError("Failed to play video. Please try again.")
       })
     }
   }
@@ -149,14 +164,23 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
 
   if (error || !videoUrl) {
     return (
-      <div className={`${className} bg-slate-800 flex items-center justify-center`}>
-        <p className="text-slate-400">Video not available</p>
+      <div className={`${className} bg-slate-800 flex flex-col items-center justify-center gap-2`}>
+        <AlertCircle className="w-8 h-8 text-red-400" />
+        <p className="text-slate-400 text-center px-4">
+          {error?.message || "Video not available"}
+        </p>
       </div>
     )
   }
 
   return (
     <div className="relative bg-black rounded-lg overflow-hidden">
+      {videoError && (
+        <div className="absolute top-2 left-2 right-2 bg-red-500/80 text-white px-3 py-2 rounded text-sm z-20">
+          {videoError}
+        </div>
+      )}
+      
       <video 
         ref={videoRef}
         className={className}
@@ -164,6 +188,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
         preload="auto"
         crossOrigin="anonymous"
         playsInline
+        onError={() => setVideoError("Error loading video. Please try again.")}
       >
         <source src={videoUrl} type="video/mp4" />
         Your browser does not support the video tag.
